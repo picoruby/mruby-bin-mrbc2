@@ -311,13 +311,11 @@ read_from_stdin(ssize_t *result_length)
 }
 
 static mrc_irep *
-load_file(struct mrc_args *args)
+load_file(mrc_ccontext *c, struct mrc_args *args)
 {
-  mrc_ccontext *c;
   mrc_irep *irep;
   char *input = args->argv[args->idx];
 
-  c = mrc_ccontext_new(MRB);
   if (args->verbose) c->dump_result = TRUE;
   c->no_exec = TRUE;
   c->no_ext_ops = args->no_ext_ops;
@@ -326,52 +324,51 @@ load_file(struct mrc_args *args)
     /* stdin */
     ssize_t length;
     uint8_t *source;
-    mrc_ccontext_filename(MRB, c, "(stdin)");
+    mrc_ccontext_filename(c, "(stdin)");
     source = read_from_stdin(&length);
     if (source == NULL) return NULL;
-    irep = mrc_load_string_cxt(MRB, source, (size_t)length, c);
+    irep = mrc_load_string_cxt(source, (size_t)length, c);
   }
   else if (args->idx == args->argc - 1) {
     /* single file */
-    mrc_ccontext_filename(MRB, c, input);
-    irep = mrc_load_file_cxt(MRB, input, c);
+    mrc_ccontext_filename(c, input);
+    irep = mrc_load_file_cxt(input, c);
   }
   else {
     /* multiple files */
     ssize_t length;
     uint8_t *source;
-    mrc_ccontext_filename(MRB, c, "(multiple files)");
+    mrc_ccontext_filename(c, "(multiple files)");
     length = input_files_length(args);
     if (length < 0) return NULL;
     source = read_input_files(args, (size_t)length);
-    irep = mrc_load_string_cxt(MRB, source, (size_t)length, c);
+    irep = mrc_load_string_cxt(source, (size_t)length, c);
   }
 
-  mrc_ccontext_free(MRB, c);
   return irep;
 }
 
 static int
-dump_file(FILE *wfp, const char *outfile, const mrc_irep *irep, struct mrc_args *args)
+dump_file(mrc_ccontext *c, FILE *wfp, const char *outfile, const mrc_irep *irep, struct mrc_args *args)
 {
   int n = MRC_DUMP_OK;
 
   if (args->remove_lv) {
-    mrc_irep_remove_lv(MRB, (mrc_irep *)irep);
+    mrc_irep_remove_lv(c, (mrc_irep *)irep);
   }
   if (args->initname) {
     if (args->dump_struct) {
-      n = mrc_dump_irep_cstruct(MRB, irep, args->flags, wfp, args->initname);
+      n = mrc_dump_irep_cstruct(c, irep, args->flags, wfp, args->initname);
     }
     else {
-      n = mrc_dump_irep_cfunc(MRB, irep, args->flags, wfp, args->initname);
+      n = mrc_dump_irep_cfunc(c, irep, args->flags, wfp, args->initname);
     }
     if (n == MRC_DUMP_INVALID_ARGUMENT) {
       fprintf(stderr, "%s: invalid C language symbol name\n", args->initname);
     }
   }
   else {
-    n = mrc_dump_irep_binary(MRB, irep, args->flags, wfp);
+    n = mrc_dump_irep_binary(c, irep, args->flags, wfp);
   }
   if (n != MRC_DUMP_OK) {
     fprintf(stderr, "%s: error in mrb dump (%s) %d\n", args->prog, outfile, n);
@@ -408,7 +405,9 @@ main(int argc, char **argv)
   }
 
   args.idx = n;
-  irep = load_file(&args);
+  mrc_ccontext *c = mrc_ccontext_new(MRB);
+  irep = load_file(c, &args);
+  mrc_ccontext_free(c);
 
   if (args.check_syntax) {
     printf("%s:%s:Syntax OK\n", args.prog, argv[n]);
@@ -434,7 +433,7 @@ main(int argc, char **argv)
     fputs("Output file is required\n", stderr);
     return EXIT_FAILURE;
   }
-  result = dump_file(wfp, args.outfile, irep, &args);
+  result = dump_file(c, wfp, args.outfile, irep, &args);
   fclose(wfp);
   cleanup(&args);
   // todo: free irep
