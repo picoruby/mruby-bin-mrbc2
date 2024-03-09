@@ -13,13 +13,6 @@
 #include "mrc_dump.h"
 #include "mrc_compile.h"
 
-#ifdef MRC_CUSTOM_ALLOC
-  #include <mrc_custom_alloc.h>
-#else
-  #define xmalloc   malloc
-  #define xfree     free
-#endif
-
 /*
 * We don't need `mrb_state *mrb` for mrbc executable
 * while we do it when the parser is called in mruby runtime.
@@ -67,7 +60,7 @@ mrc_show_version(void)
 static void
 mrc_show_copyright(void)
 {
-  printf("Copyright (c) 2010-%s mruby & PicoRuby developers\n", MRC_COPYRIGHT_YEAR);
+  printf("Copyright (c) 2010-%s mruby developers\n", MRC_COPYRIGHT_YEAR);
 }
 
 static void
@@ -236,64 +229,126 @@ cleanup(struct mrc_args *args)
   xfree((void*)args->outfile);
 }
 
-static int
-partial_hook(struct mrc_parser_state *p)
+static ssize_t
+input_files_length(struct mrc_args *args)
 {
-  mrc_ccontext *c = p->cxt;
-  struct mrc_args *args = (struct mrc_args*)c->partial_data;
-  const char *fn;
+  ssize_t length = 0;
+  FILE *file;
+  int i;
+  for (i = args->idx; i < args->argc; i++) {
+    file = fopen(args->argv[i], "rb");
+    if (file == NULL) {
+      fprintf(stderr, "%s: cannot open program file. (%s)\n", args->prog, args->argv[i]);
+      return -1;
+    }
+    fseek(file, 0, SEEK_END);
+    length += ftell(file);
+    fclose(file);
+  }
+  length++;
+  return length;
+}
 
-  if (p->f) fclose(p->f);
-  if (args->idx >= args->argc) {
-    p->f = NULL;
-    return -1;
+static uint8_t *
+read_input_files(struct mrc_args *args, size_t length)
+{
+  int i;
+  size_t pos = 0;
+  size_t each_size;
+  FILE *file;
+  uint8_t *source = (uint8_t *)xmalloc(length);
+  for (i = args->idx; i < args->argc; i++) {
+    file = fopen(args->argv[i], "rb");
+    fseek(file, 0, SEEK_END);
+    each_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    if (fread(source + pos, sizeof(char), each_size, file) != each_size) {
+      fprintf(stderr, "%s: cannot read program file. (%s)\n", args->prog, args->argv[i]);
+      return NULL;
+    }
+    fclose(file);
+    pos += each_size;
+    source[pos] = '\n';
+    pos++;
   }
-  fn = args->argv[args->idx++];
-  p->f = fopen(fn, "rb");
-  if (p->f == NULL) {
-    fprintf(stderr, "%s: cannot open program file. (%s)\n", args->prog, fn);
-    return -1;
+  source[pos] = '\0';
+  return source;
+}
+
+#define INITIAL_BUF_SIZE 1024
+
+static uint8_t *
+read_from_stdin(ssize_t *result_length)
+{
+  *result_length = -1;
+  uint8_t *buffer = xmalloc(INITIAL_BUF_SIZE);
+  if (buffer == NULL) return NULL;
+
+  int capacity = INITIAL_BUF_SIZE;
+  size_t length = 0;
+
+  while (1) {
+    int ch = getchar();
+    if (ch == EOF) {
+      buffer[length] = '\0';
+      *result_length = length;
+      return buffer;
+    }
+
+    buffer[length] = (uint8_t)ch;
+    length++;
+
+    if (capacity <= length) {
+      capacity *= 2;
+      uint8_t *new_buffer = xrealloc(buffer, capacity);
+      if (new_buffer == NULL) {
+        xfree(buffer);
+        return NULL;
+      }
+      buffer = new_buffer;
+    }
   }
-  mrc_parser_set_filename(p, fn);
-  return 0;
 }
 
 static mrc_irep *
 load_file(struct mrc_args *args)
 {
   mrc_ccontext *c;
-  mrc_irep *result;
+  mrc_irep *irep;
   char *input = args->argv[args->idx];
-  FILE *infile;
-  mrc_bool need_close = FALSE;
 
   c = mrc_ccontext_new(MRB);
-  if (args->verbose)
-    c->dump_result = TRUE;
+  if (args->verbose) c->dump_result = TRUE;
   c->no_exec = TRUE;
   c->no_ext_ops = args->no_ext_ops;
   c->no_optimize = args->no_optimize;
   if (input[0] == '-' && input[1] == '\0') {
-    infile = stdin;
+    /* stdin */
+    ssize_t length;
+    uint8_t *source;
+    mrc_ccontext_filename(MRB, c, "(stdin)");
+    source = read_from_stdin(&length);
+    if (source == NULL) return NULL;
+    irep = mrc_load_string_cxt(MRB, source, (size_t)length, c);
+  }
+  else if (args->idx == args->argc - 1) {
+    /* single file */
+    mrc_ccontext_filename(MRB, c, input);
+    irep = mrc_load_file_cxt(MRB, input, c);
   }
   else {
-    need_close = TRUE;
-    if ((infile = fopen(input, "rb")) == NULL) {
-      fprintf(stderr, "%s: cannot open program file. (%s)\n", args->prog, input);
-      return NULL;
-    }
-  }
-  mrc_ccontext_filename(MRB, c, input);
-  args->idx++;
-  if (args->idx < args->argc) {
-    need_close = FALSE;
-    mrc_ccontext_partial_hook(MRB, c, partial_hook, (void*)args);
+    /* multiple files */
+    ssize_t length;
+    uint8_t *source;
+    mrc_ccontext_filename(MRB, c, "(multiple files)");
+    length = input_files_length(args);
+    if (length < 0) return NULL;
+    source = read_input_files(args, (size_t)length);
+    irep = mrc_load_string_cxt(MRB, source, (size_t)length, c);
   }
 
-  result = mrc_load_file_cxt(MRB, infile, c);
-  if (need_close) fclose(infile);
   mrc_ccontext_free(MRB, c);
-  return result;
+  return irep;
 }
 
 static int
@@ -354,19 +409,18 @@ main(int argc, char **argv)
 
   args.idx = n;
   irep = load_file(&args);
+
+  if (args.check_syntax) {
+    printf("%s:%s:Syntax OK\n", args.prog, argv[n]);
+    cleanup(&args);
+    // todo: free irep
+    return EXIT_SUCCESS;
+  }
+
   if (irep == NULL){
     cleanup(&args);
     return EXIT_FAILURE;
   }
-  if (args.check_syntax) {
-    printf("%s:%s:Syntax OK\n", args.prog, argv[n]);
-  }
-
-  if (args.check_syntax) {
-    cleanup(&args);
-    return EXIT_SUCCESS;
-  }
-
   if (args.outfile) {
     if (strcmp("-", args.outfile) == 0) {
       wfp = stdout;
@@ -383,6 +437,7 @@ main(int argc, char **argv)
   result = dump_file(wfp, args.outfile, irep, &args);
   fclose(wfp);
   cleanup(&args);
+  // todo: free irep
   if (result != MRC_DUMP_OK) {
     return EXIT_FAILURE;
   }
