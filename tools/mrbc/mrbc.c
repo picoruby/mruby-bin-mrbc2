@@ -242,10 +242,9 @@ input_files_length(struct mrc_args *args)
       return -1;
     }
     fseek(file, 0, SEEK_END);
-    length += ftell(file);
+    length += ftell(file) + 1;
     fclose(file);
   }
-  length++;
   return length;
 }
 
@@ -268,10 +267,13 @@ read_input_files(struct mrc_args *args, size_t length)
     }
     fclose(file);
     pos += each_size;
-    source[pos] = '\n';
-    pos++;
+    if (length <= pos) {
+      fprintf(stderr, "%s: insufficient memory allocated for input files. (%s)\n", args->prog, args->argv[i]);
+      return NULL;
+    }
+    source[pos++] = '\n';
   }
-  source[pos] = '\0';
+  source[pos - 1] = '\0';
   return source;
 }
 
@@ -343,6 +345,7 @@ load_file(mrc_ccontext *c, struct mrc_args *args)
     if (length < 0) return NULL;
     source = read_input_files(args, (size_t)length);
     irep = mrc_load_string_cxt(source, (size_t)length, c);
+    xfree(source);
   }
 
   return irep;
