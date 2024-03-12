@@ -329,12 +329,12 @@ load_file(mrc_ccontext *c, struct mrc_args *args)
     mrc_ccontext_filename(c, "(stdin)");
     source = read_from_stdin(&length);
     if (source == NULL) return NULL;
-    irep = mrc_load_string_cxt(source, (size_t)length, c);
+    irep = mrc_load_string_cxt(c, source, (size_t)length);
   }
   else if (args->idx == args->argc - 1) {
     /* single file */
     mrc_ccontext_filename(c, input);
-    irep = mrc_load_file_cxt(input, c);
+    irep = mrc_load_file_cxt(c, input);
   }
   else {
     /* multiple files */
@@ -344,7 +344,7 @@ load_file(mrc_ccontext *c, struct mrc_args *args)
     length = input_files_length(args);
     if (length < 0) return NULL;
     source = read_input_files(args, (size_t)length);
-    irep = mrc_load_string_cxt(source, (size_t)length, c);
+    irep = mrc_load_string_cxt(c, source, (size_t)length);
     xfree(source);
   }
 
