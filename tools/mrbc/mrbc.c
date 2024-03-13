@@ -410,7 +410,6 @@ main(int argc, char **argv)
   args.idx = n;
   mrc_ccontext *c = mrc_ccontext_new(MRB);
   irep = load_file(c, &args);
-  mrc_ccontext_free(c);
 
   if (args.check_syntax) {
     printf("%s:%s:Syntax OK\n", args.prog, argv[n]);
@@ -437,6 +436,7 @@ main(int argc, char **argv)
     return EXIT_FAILURE;
   }
   result = dump_file(c, wfp, args.outfile, irep, &args);
+  mrc_ccontext_free(c);
   fclose(wfp);
   cleanup(&args);
   // todo: free irep
