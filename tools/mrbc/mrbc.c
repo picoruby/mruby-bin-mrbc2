@@ -12,6 +12,7 @@
 #include "mrc_ccontext.h"
 #include "mrc_dump.h"
 #include "mrc_compile.h"
+#include "mrc_pool.h"
 
 /*
 * We don't need `mrb_state *mrb` for mrbc executable
@@ -414,7 +415,7 @@ main(int argc, char **argv)
   if (args.check_syntax) {
     printf("%s:%s:Syntax OK\n", args.prog, argv[n]);
     cleanup(&args);
-    // todo: free irep
+    mrc_irep_free(c, irep);
     return EXIT_SUCCESS;
   }
 
@@ -439,7 +440,7 @@ main(int argc, char **argv)
   mrc_ccontext_free(c);
   fclose(wfp);
   cleanup(&args);
-  // todo: free irep
+  mrc_irep_free(c, irep);
   if (result != MRC_DUMP_OK) {
     return EXIT_FAILURE;
   }
