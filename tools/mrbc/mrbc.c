@@ -110,7 +110,7 @@ get_outfilename(char *infile, const char *ext)
   else {
     flen = ilen;
   }
-  outfile = (char*)xmalloc(flen+1);
+  outfile = (char*)mrc_malloc(flen+1);
   memcpy(outfile, infile, ilen);
   outfile[ilen] = '\0';
   if (p) {
@@ -227,7 +227,7 @@ parse_args(int argc, char **argv, struct mrc_args *args)
 static void
 cleanup(struct mrc_args *args)
 {
-  xfree((void*)args->outfile);
+  mrc_free((void*)args->outfile);
 }
 
 static ssize_t
@@ -256,7 +256,7 @@ read_input_files(struct mrc_args *args, size_t length)
   size_t pos = 0;
   size_t each_size;
   FILE *file;
-  uint8_t *source = (uint8_t *)xmalloc(length);
+  uint8_t *source = (uint8_t *)mrc_malloc(length);
   for (i = args->idx; i < args->argc; i++) {
     file = fopen(args->argv[i], "rb");
     fseek(file, 0, SEEK_END);
@@ -284,7 +284,7 @@ static uint8_t *
 read_from_stdin(ssize_t *result_length)
 {
   *result_length = -1;
-  uint8_t *buffer = xmalloc(INITIAL_BUF_SIZE);
+  uint8_t *buffer = mrc_malloc(INITIAL_BUF_SIZE);
   if (buffer == NULL) return NULL;
 
   int capacity = INITIAL_BUF_SIZE;
@@ -303,9 +303,9 @@ read_from_stdin(ssize_t *result_length)
 
     if (capacity <= length) {
       capacity *= 2;
-      uint8_t *new_buffer = xrealloc(buffer, capacity);
+      uint8_t *new_buffer = mrc_realloc(buffer, capacity);
       if (new_buffer == NULL) {
-        xfree(buffer);
+        mrc_free(buffer);
         return NULL;
       }
       buffer = new_buffer;
@@ -346,7 +346,7 @@ load_file(mrc_ccontext *c, struct mrc_args *args)
     if (length < 0) return NULL;
     source = read_input_files(args, (size_t)length);
     irep = mrc_load_string_cxt(c, source, (size_t)length);
-    xfree(source);
+    mrc_free(source);
   }
 
   return irep;
@@ -380,6 +380,12 @@ dump_file(mrc_ccontext *c, FILE *wfp, const char *outfile, const mrc_irep *irep,
   return n;
 }
 
+#if defined(MRC_PARSER_KANEKO)
+#include "ruby.h"
+// FIXME: workaround
+int loglevel = 0;
+#endif
+
 int
 main(int argc, char **argv)
 {
@@ -407,6 +413,10 @@ main(int argc, char **argv)
       return EXIT_FAILURE;
     }
   }
+
+#if defined(MRC_PARSER_KANEKO)
+  ruby_init();
+#endif
 
   args.idx = n;
   mrc_ccontext *c = mrc_ccontext_new(MRB);
