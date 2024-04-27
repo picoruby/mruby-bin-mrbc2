@@ -11,7 +11,13 @@ MRuby::Gem::Specification.new 'mruby-bin-mrbc' do |spec|
 
   cc.include_paths << "#{compiler2_dir}/lib/prism/include"
 
-  exec = exefile("#{build.build_dir}/bin/mrbc2")
+  if cc.defines.flatten.include? "MRC_PARSER_KANEKO"
+    exe_name = 'mrbc_kaneko'
+  else
+    exe_name = 'mrbc_prism'
+  end
+
+  exec = exefile("#{build.build_dir}/bin/#{exe_name}")
   mrbc2_objs = Dir.glob("#{dir}/tools/mrbc/*.c").map { |f| objfile(f.pathmap("#{build_dir}/tools/mrbc/%n")) }
 
   mrbc2_objs << build.libmruby_static
@@ -33,6 +39,6 @@ MRuby::Gem::Specification.new 'mruby-bin-mrbc' do |spec|
     build.linker.run t.name, t.prerequisites, libraries
   end
 
-  build.bins << 'mrbc2'
+  build.bins << exe_name
 
 end
