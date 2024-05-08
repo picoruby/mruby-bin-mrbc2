@@ -48,20 +48,16 @@ struct mrc_args {
   uint8_t flags         : 2;
 };
 
-#define MRC_VERSION "0.1.0"
-#define MRC_COPYRIGHT_YEAR "2024"
-#define MRC_DATE MRC_COPYRIGHT_YEAR "-03-01"
-
 static void
 mrc_show_version(void)
 {
-  printf("mrbc %s (%s)\n", MRC_VERSION, MRC_DATE);
+  printf("mrbc %s\n", mrc_description());
 }
 
 static void
 mrc_show_copyright(void)
 {
-  printf("Copyright (c) 2010-%s mruby developers\n", MRC_COPYRIGHT_YEAR);
+  printf("Copyright (c) 2010-%s mruby developers\n", MRC_STRINGIZE(MRC_RELEASE_YEAR));
 }
 
 static void
@@ -380,7 +376,7 @@ dump_file(mrc_ccontext *c, FILE *wfp, const char *outfile, const mrc_irep *irep,
   return n;
 }
 
-#if defined(MRC_PARSER_KANEKO)
+#if defined(MRC_PARSER_LRAMA)
 #include "ruby.h"
 // FIXME: workaround
 int loglevel = 0;
@@ -413,10 +409,6 @@ main(int argc, char **argv)
       return EXIT_FAILURE;
     }
   }
-
-#if defined(MRC_PARSER_KANEKO)
-  ruby_init();
-#endif
 
   args.idx = n;
   mrc_ccontext *c = mrc_ccontext_new(MRB);
@@ -451,6 +443,7 @@ main(int argc, char **argv)
   fclose(wfp);
   cleanup(&args);
   mrc_irep_free(c, irep);
+
   if (result != MRC_DUMP_OK) {
     return EXIT_FAILURE;
   }

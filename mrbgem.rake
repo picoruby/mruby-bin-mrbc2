@@ -11,8 +11,8 @@ MRuby::Gem::Specification.new 'mruby-bin-mrbc' do |spec|
 
   cc.include_paths << "#{compiler2_dir}/lib/prism/include"
 
-  if cc.defines.flatten.include? "MRC_PARSER_KANEKO"
-    exe_name = 'mrbc_kaneko'
+  if cc.defines.flatten.include? "MRC_PARSER_LRAMA"
+    exe_name = 'mrbc_lrama'
   else
     exe_name = 'mrbc_prism'
   end
@@ -22,7 +22,7 @@ MRuby::Gem::Specification.new 'mruby-bin-mrbc' do |spec|
 
   mrbc2_objs << build.libmruby_static
 
-  if cc.defines.flatten.include? "MRC_PARSER_KANEKO"
+  if cc.defines.flatten.include? "MRC_PARSER_LRAMA"
     cc.defines << "UNIVERSAL_PARSER"
     libruby_parser_dir = "#{compiler2_dir}/lib/libruby-parser"
     cc.include_paths << "#{libruby_parser_dir}/include"
