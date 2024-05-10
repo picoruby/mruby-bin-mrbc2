@@ -20,20 +20,21 @@ MRuby::Gem::Specification.new 'mruby-bin-mrbc' do |spec|
   exec = exefile("#{build.build_dir}/bin/#{exe_name}")
   mrbc2_objs = Dir.glob("#{dir}/tools/mrbc/*.c").map { |f| objfile(f.pathmap("#{build_dir}/tools/mrbc/%n")) }
 
-  mrbc2_objs << build.libmruby_static
-
   if cc.defines.flatten.include? "MRC_PARSER_LRAMA"
     cc.defines << "UNIVERSAL_PARSER"
-    libruby_parser_dir = "#{compiler2_dir}/lib/libruby-parser"
-    cc.include_paths << "#{libruby_parser_dir}/include"
-    cc.include_paths << "#{libruby_parser_dir}/lib/ruby"
-    cc.include_paths << "#{libruby_parser_dir}/lib/ruby/include"
-    cc.include_paths << "#{libruby_parser_dir}/lib/ruby/.ext/include/x86_64-linux"
-    mrbc2_objs << "#{libruby_parser_dir}/lib/ruby/libruby-static.a"
-    libraries = ["z", "crypt", "gmp"]
+    ruby_dir = "#{compiler2_dir}/lib/ruby"
+    cc.include_paths << "#{ruby_dir}"
+    cc.include_paths << "#{ruby_dir}/include"
+    cc.include_paths << "#{ruby_dir}/.ext/include/x86_64-linux"
+    #mrbc2_objs << "#{ruby_dir}/librubyparser-static.a"
+    #libraries = ["z", "crypt", "gmp"]
+    libraries = []
   else
     libraries = []
   end
+
+  # Order of linking objects matters
+  mrbc2_objs << build.libmruby_static
 
   file exec => mrbc2_objs do |t|
     build.linker.run t.name, t.prerequisites, libraries
