@@ -330,6 +330,12 @@ load_file(mrc_ccontext *c, struct mrc_args *args)
   }
   else if (args->idx == args->argc - 1) {
     /* single file */
+    FILE *file = fopen(input, "r");
+    if (!file) {
+      fprintf(stderr, "%s: cannot open program file. (%s)\n", args->prog, input);
+      return NULL;
+    }
+    fclose(file);
     mrc_ccontext_filename(c, input);
     irep = mrc_load_file_cxt(c, input);
   }
