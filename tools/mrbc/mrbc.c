@@ -420,6 +420,14 @@ main(int argc, char **argv)
   mrc_ccontext *c = mrc_ccontext_new(MRB);
   irep = load_file(c, &args);
 
+  mrc_diagnostic_list *d = c->diagnostic_list;
+  while (d) {
+    if (args.verbose || d->code == MRC_PARSER_ERROR || d->code == MRC_GENERATOR_ERROR) {
+      fprintf(stderr, "%s:%d:%d: %s\n", c->filename, d->line, d->column, d->message);
+    }
+    d = d->next;
+  }
+
   if (args.check_syntax) {
     printf("%s:%s:Syntax OK\n", args.prog, argv[n]);
     cleanup(&args);
