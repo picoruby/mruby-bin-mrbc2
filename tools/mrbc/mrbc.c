@@ -226,130 +226,22 @@ cleanup(struct mrc_args *args)
   mrc_free((void*)args->outfile);
 }
 
-static ssize_t
-input_files_length(struct mrc_args *args)
-{
-  ssize_t length = 0;
-  FILE *file;
-  int i;
-  for (i = args->idx; i < args->argc; i++) {
-    file = fopen(args->argv[i], "rb");
-    if (file == NULL) {
-      fprintf(stderr, "%s: cannot open program file. (%s)\n", args->prog, args->argv[i]);
-      return -1;
-    }
-    fseek(file, 0, SEEK_END);
-    length += ftell(file) + 1;
-    fclose(file);
-  }
-  return length;
-}
-
-static uint8_t *
-read_input_files(struct mrc_args *args, size_t length)
-{
-  int i;
-  size_t pos = 0;
-  size_t each_size;
-  FILE *file;
-  uint8_t *source = (uint8_t *)mrc_malloc(length);
-  for (i = args->idx; i < args->argc; i++) {
-    file = fopen(args->argv[i], "rb");
-    fseek(file, 0, SEEK_END);
-    each_size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    if (fread(source + pos, sizeof(char), each_size, file) != each_size) {
-      fprintf(stderr, "%s: cannot read program file. (%s)\n", args->prog, args->argv[i]);
-      return NULL;
-    }
-    fclose(file);
-    pos += each_size;
-    if (length <= pos) {
-      fprintf(stderr, "%s: insufficient memory allocated for input files. (%s)\n", args->prog, args->argv[i]);
-      return NULL;
-    }
-    source[pos++] = '\n';
-  }
-  source[pos - 1] = '\0';
-  return source;
-}
-
-#define INITIAL_BUF_SIZE 1024
-
-static uint8_t *
-read_from_stdin(ssize_t *result_length)
-{
-  *result_length = -1;
-  uint8_t *buffer = mrc_malloc(INITIAL_BUF_SIZE);
-  if (buffer == NULL) return NULL;
-
-  int capacity = INITIAL_BUF_SIZE;
-  size_t length = 0;
-
-  while (1) {
-    int ch = getchar();
-    if (ch == EOF) {
-      buffer[length] = '\0';
-      *result_length = length;
-      return buffer;
-    }
-
-    buffer[length] = (uint8_t)ch;
-    length++;
-
-    if (capacity <= length) {
-      capacity *= 2;
-      uint8_t *new_buffer = mrc_realloc(buffer, capacity);
-      if (new_buffer == NULL) {
-        mrc_free(buffer);
-        return NULL;
-      }
-      buffer = new_buffer;
-    }
-  }
-}
-
 static mrc_irep *
-load_file(mrc_ccontext *c, struct mrc_args *args)
+load_file(mrc_ccontext *c, struct mrc_args *args, uint8_t *source)
 {
   mrc_irep *irep;
-  char *input = args->argv[args->idx];
 
   if (args->verbose) c->dump_result = TRUE;
   c->no_exec = TRUE;
   c->no_ext_ops = args->no_ext_ops;
   c->no_optimize = args->no_optimize;
-  if (input[0] == '-' && input[1] == '\0') {
-    /* stdin */
-    ssize_t length;
-    uint8_t *source;
-    mrc_ccontext_filename(c, "(stdin)");
-    source = read_from_stdin(&length);
-    if (source == NULL) return NULL;
-    irep = mrc_load_string_cxt(c, source, (size_t)length);
+
+  char *filenames[args->argc - args->idx + 1];
+  for (int i = args->idx; i < args->argc; i++) {
+    filenames[i - args->idx] = args->argv[i];
   }
-  else if (args->idx == args->argc - 1) {
-    /* single file */
-    FILE *file = fopen(input, "r");
-    if (!file) {
-      fprintf(stderr, "%s: cannot open program file. (%s)\n", args->prog, input);
-      return NULL;
-    }
-    fclose(file);
-    mrc_ccontext_filename(c, input);
-    irep = mrc_load_file_cxt(c, input);
-  }
-  else {
-    /* multiple files */
-    ssize_t length;
-    uint8_t *source;
-    mrc_ccontext_filename(c, "(multiple files)");
-    length = input_files_length(args);
-    if (length < 0) return NULL;
-    source = read_input_files(args, (size_t)length);
-    irep = mrc_load_string_cxt(c, source, (size_t)length);
-    mrc_free(source);
-  }
+  filenames[args->argc - args->idx] = NULL;
+  irep = mrc_load_file_cxt(c, (const char **)filenames, source);
 
   return irep;
 }
@@ -418,7 +310,12 @@ main(int argc, char **argv)
 
   args.idx = n;
   mrc_ccontext *c = mrc_ccontext_new(MRB);
-  irep = load_file(c, &args);
+  uint8_t *source = NULL;
+  irep = load_file(c, &args, source);
+  if (irep == NULL){
+    cleanup(&args);
+    return EXIT_FAILURE;
+  }
 
   mrc_diagnostic_list *d = c->diagnostic_list;
   while (d) {
@@ -435,10 +332,6 @@ main(int argc, char **argv)
     return EXIT_SUCCESS;
   }
 
-  if (irep == NULL){
-    cleanup(&args);
-    return EXIT_FAILURE;
-  }
   if (args.outfile) {
     if (strcmp("-", args.outfile) == 0) {
       wfp = stdout;
@@ -453,6 +346,7 @@ main(int argc, char **argv)
     return EXIT_FAILURE;
   }
   result = dump_file(c, wfp, args.outfile, irep, &args);
+  if (source) mrc_free(source);
   mrc_ccontext_free(c);
   fclose(wfp);
   cleanup(&args);
