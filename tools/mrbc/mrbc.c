@@ -11,6 +11,7 @@
 #include "mrc_irep.h"
 #include "mrc_ccontext.h"
 #include "mrc_dump.h"
+#include "mrc_cdump.h"
 #include "mrc_compile.h"
 #include "mrc_pool.h"
 
