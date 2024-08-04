@@ -228,7 +228,7 @@ cleanup(struct mrc_args *args)
 }
 
 static mrc_irep *
-load_file(mrc_ccontext *c, struct mrc_args *args, uint8_t *source)
+load_file(mrc_ccontext *c, struct mrc_args *args, uint8_t **source)
 {
   mrc_irep *irep;
 
@@ -275,12 +275,6 @@ dump_file(mrc_ccontext *c, FILE *wfp, const char *outfile, const mrc_irep *irep,
   return n;
 }
 
-#if defined(MRC_PARSER_LRAMA)
-#include "ruby.h"
-// FIXME: workaround
-int loglevel = 0;
-#endif
-
 int
 main(int argc, char **argv)
 {
@@ -312,7 +306,7 @@ main(int argc, char **argv)
   args.idx = n;
   mrc_ccontext *c = mrc_ccontext_new(MRB);
   uint8_t *source = NULL;
-  irep = load_file(c, &args, source);
+  irep = load_file(c, &args, &source);
   if (irep == NULL){
     cleanup(&args);
     return EXIT_FAILURE;
