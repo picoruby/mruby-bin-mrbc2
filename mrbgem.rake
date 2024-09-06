@@ -18,7 +18,10 @@ MRuby::Gem::Specification.new 'mruby-bin-mrbc' do |spec|
   end
 
   exec = exefile("#{build.build_dir}/bin/#{exe_name}")
+
   mrbc2_objs = Dir.glob("#{dir}/tools/mrbc/*.c").map { |f| objfile(f.pathmap("#{build_dir}/tools/mrbc/%n")) }
+  mrbc2_objs += build.gems['mruby-compiler2'].objs
+  mrbc2_objs.delete_if{|o| o.include?("gem_init")}
 
   if cc.defines.flatten.include? "MRC_PARSER_LRAMA"
     cc.defines << "UNIVERSAL_PARSER"
@@ -35,6 +38,7 @@ MRuby::Gem::Specification.new 'mruby-bin-mrbc' do |spec|
 
   # Order of linking objects matters
   mrbc2_objs << build.libmruby_static
+  mrbc2_objs.delete_if{|o| o.include?("libmruby")}
 
   file exec => mrbc2_objs do |t|
     build.linker.run t.name, t.prerequisites, libraries
