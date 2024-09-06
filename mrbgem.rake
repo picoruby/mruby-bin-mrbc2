@@ -1,9 +1,10 @@
-MRuby::Gem::Specification.new 'mruby-bin-mrbc' do |spec|
+MRuby::Gem::Specification.new 'mruby-bin-mrbc2' do |spec|
   spec.license = 'MIT'
   spec.author  = 'mruby & PicoRuby developers'
   spec.summary = 'mruby compiler executable'
   spec.add_dependency "mruby-compiler2"
   spec.add_conflict 'mruby-compiler'
+  spec.add_conflict 'mruby-bin-picorbc'
 
   cc.defines << %w(MRC_TARGET_PICORUBY)
 
@@ -11,11 +12,7 @@ MRuby::Gem::Specification.new 'mruby-bin-mrbc' do |spec|
 
   cc.include_paths << "#{compiler2_dir}/lib/prism/include"
 
-  if cc.defines.flatten.include? "MRC_PARSER_LRAMA"
-    exe_name = 'mrbc_lrama'
-  else
-    exe_name = 'mrbc_prism'
-  end
+  exe_name = 'picorbc'
 
   exec = exefile("#{build.build_dir}/bin/#{exe_name}")
 
@@ -23,18 +20,7 @@ MRuby::Gem::Specification.new 'mruby-bin-mrbc' do |spec|
   mrbc2_objs += build.gems['mruby-compiler2'].objs
   mrbc2_objs.delete_if{|o| o.include?("gem_init")}
 
-  if cc.defines.flatten.include? "MRC_PARSER_LRAMA"
-    cc.defines << "UNIVERSAL_PARSER"
-    ruby_dir = "#{compiler2_dir}/lib/ruby"
-    cc.include_paths << "#{ruby_dir}"
-    cc.include_paths << "#{ruby_dir}/include"
-    cc.include_paths << "#{ruby_dir}/.ext/include/x86_64-linux"
-    #mrbc2_objs << "#{ruby_dir}/librubyparser-static.a"
-    #libraries = ["z", "crypt", "gmp"]
-    libraries = []
-  else
-    libraries = []
-  end
+  libraries = []
 
   # Order of linking objects matters
   mrbc2_objs << build.libmruby_static

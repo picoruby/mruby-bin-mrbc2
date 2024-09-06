@@ -52,7 +52,7 @@ struct mrc_args {
 static void
 mrc_show_version(void)
 {
-  printf("mrbc %s\n", mrc_description());
+  printf("picorbc %s\n", mrc_description());
 }
 
 static void
