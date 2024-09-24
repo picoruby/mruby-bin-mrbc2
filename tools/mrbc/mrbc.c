@@ -4,9 +4,14 @@
 
 #include <stdlib.h>
 #include <string.h>
-/*
- * mrb_xxx.h are in mruby-compiler2/include
- */
+
+#if !defined(MRBC_ALLOC_LIBC)
+  #include <mrubyc.h>
+  #if !defined(HEAP_SIZE)
+    #define HEAP_SIZE (1024 * 6400 - 1)
+  #endif
+#endif
+
 #include "mrc_common.h"
 #include "mrc_irep.h"
 #include "mrc_ccontext.h"
@@ -275,9 +280,13 @@ dump_file(mrc_ccontext *c, FILE *wfp, const char *outfile, const mrc_irep *irep,
   return n;
 }
 
+static uint8_t mrbc_heap[HEAP_SIZE];
 int
 main(int argc, char **argv)
 {
+#if !defined(MRBC_ALLOC_LIBC)
+  mrbc_init(mrbc_heap, HEAP_SIZE);
+#endif
   int n, result;
   struct mrc_args args;
   FILE *wfp;
