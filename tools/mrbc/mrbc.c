@@ -21,12 +21,6 @@
 #include "mrc_compile.h"
 #include "mrc_pool.h"
 
-/*
-* We don't need `mrb_state *mrb` for mrbc executable
-* while we do it when the parser is called in mruby runtime.
-*/
-typedef void mrb_state;
-
 #define MRB NULL
 
 #define RITEBIN_EXT ".mrb"
