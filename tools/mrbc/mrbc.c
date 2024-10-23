@@ -279,7 +279,7 @@ int
 main(int argc, char **argv)
 {
 #if !defined(MRBC_ALLOC_LIBC)
-  mrbc_init(mrbc_heap, HEAP_SIZE);
+  mrbc_init_alloc(mrbc_heap, HEAP_SIZE);
 #endif
   int n, result;
   struct mrc_args args;

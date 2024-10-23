@@ -4,7 +4,7 @@ MRuby::Gem::Specification.new 'mruby-bin-mrbc2' do |spec|
   spec.summary = 'mruby compiler executable'
   spec.add_dependency "mruby-compiler2"
   if cc.defines.include?('MRC_CUSTOM_ALLOC')
-    spec.add_dependency 'picoruby-mrubyc' # For alloc.c
+    spec.add_dependency 'picoruby-mrubyc' # For alloc.c etc.
   end
   spec.add_conflict 'mruby-compiler'
   spec.add_conflict 'mruby-bin-picorbc'
@@ -22,14 +22,22 @@ MRuby::Gem::Specification.new 'mruby-bin-mrbc2' do |spec|
   mrbc2_objs = Dir.glob("#{dir}/tools/mrbc/*.c").map { |f| objfile(f.pathmap("#{build_dir}/tools/mrbc/%n")) }
   mrbc2_objs += build.gems['mruby-compiler2'].objs
   mrbc2_objs.delete_if{|o| o.include?("gem_init")}
+  if cc.defines.include?('MRC_CUSTOM_ALLOC')
+    mrubyc_dir = "#{build.gems['picoruby-mrubyc'].dir}/lib/mrubyc"
+    cc.include_paths << "#{build.gems['picoruby-mrubyc'].dir}/lib/mrubyc/src"
+    Dir.glob(["#{mrubyc_dir}/src/*.c", "#{mrubyc_dir}/hal/posix/*.c"]).each do |mrubyc_src|
+      mrubyc_obj = objfile(mrubyc_src.pathmap("#{build.build_dir}/tools/mrbc/%n"))
+      file mrubyc_obj => mrubyc_src do |f|
+        # To avoid "mrbc_raw_free(): NULL pointer was given.\n"
+        cc.defines << "NDEBUG"
+        cc.run f.name, f.prerequisites.first
+        cc.reject { |d| d == "NDEBUG" }
+      end
+      mrbc2_objs << mrubyc_obj
+    end
+  end
 
   libraries = []
-
-  # Order of linking objects matters
-  mrbc2_objs << build.libmruby_static
-  unless cc.defines.include?('MRC_CUSTOM_ALLOC')
-    mrbc2_objs.delete_if{|o| o.include?("libmruby")}
-  end
 
   file exec => mrbc2_objs do |t|
     build.linker.run t.name, t.prerequisites, libraries
