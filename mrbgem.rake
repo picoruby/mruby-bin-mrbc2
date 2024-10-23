@@ -31,7 +31,7 @@ MRuby::Gem::Specification.new 'mruby-bin-mrbc2' do |spec|
         # To avoid "mrbc_raw_free(): NULL pointer was given.\n"
         cc.defines << "NDEBUG"
         cc.run f.name, f.prerequisites.first
-        cc.reject { |d| d == "NDEBUG" }
+        cc.reject! { |d| d == "NDEBUG" }
       end
       mrbc2_objs << mrubyc_obj
     end
