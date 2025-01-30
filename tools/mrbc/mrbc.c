@@ -89,7 +89,7 @@ usage(const char *name)
 }
 
 static char *
-get_outfilename(char *infile, const char *ext)
+get_outfilename(mrc_ccontext *c, char *infile, const char *ext)
 {
   size_t ilen, flen, elen;
   char *outfile;
@@ -107,7 +107,7 @@ get_outfilename(char *infile, const char *ext)
   else {
     flen = ilen;
   }
-  outfile = (char*)mrc_malloc(flen+1);
+  outfile = (char*)mrc_malloc(c, flen+1);
   memcpy(outfile, infile, ilen);
   outfile[ilen] = '\0';
   if (p) {
@@ -119,7 +119,7 @@ get_outfilename(char *infile, const char *ext)
 }
 
 static int
-parse_args(int argc, char **argv, struct mrc_args *args)
+parse_args(mrc_ccontext *c, int argc, char **argv, struct mrc_args *args)
 {
   static const struct mrc_args args_zero = { 0 };
   int i;
@@ -140,10 +140,10 @@ parse_args(int argc, char **argv, struct mrc_args *args)
         }
         if (argv[i][2] == '\0' && argv[i+1]) {
           i++;
-          args->outfile = get_outfilename(argv[i], "");
+          args->outfile = get_outfilename(c, argv[i], "");
         }
         else {
-          args->outfile = get_outfilename(argv[i] + 2, "");
+          args->outfile = get_outfilename(c, argv[i] + 2, "");
         }
         break;
       case 'S':
@@ -222,9 +222,9 @@ parse_args(int argc, char **argv, struct mrc_args *args)
 }
 
 static void
-cleanup(struct mrc_args *args)
+cleanup(mrc_ccontext *c, struct mrc_args *args)
 {
-  mrc_free((void*)args->outfile);
+  mrc_free(c, (void*)args->outfile);
 }
 
 static mrc_irep *
@@ -286,9 +286,11 @@ main(int argc, char **argv)
   FILE *wfp;
   mrc_irep *irep;
 
-  n = parse_args(argc, argv, &args);
+  mrc_ccontext *c = mrc_ccontext_new(MRB);
+
+  n = parse_args(c, argc, argv, &args);
   if (n < 0) {
-    cleanup(&args);
+    cleanup(c, &args);
     usage(argv[0]);
     return EXIT_FAILURE;
   }
@@ -298,7 +300,7 @@ main(int argc, char **argv)
   }
   if (args.outfile == NULL && !args.check_syntax) {
     if (n + 1 == argc) {
-      args.outfile = get_outfilename(argv[n], args.initname ? C_EXT : RITEBIN_EXT);
+      args.outfile = get_outfilename(c, argv[n], args.initname ? C_EXT : RITEBIN_EXT);
     }
     else {
       fprintf(stderr, "%s: output file should be specified to compile multiple files\n", args.prog);
@@ -307,11 +309,10 @@ main(int argc, char **argv)
   }
 
   args.idx = n;
-  mrc_ccontext *c = mrc_ccontext_new(MRB);
   uint8_t *source = NULL;
   irep = load_file(c, &args, &source);
   if (irep == NULL){
-    cleanup(&args);
+    cleanup(c, &args);
     return EXIT_FAILURE;
   }
 
@@ -325,7 +326,7 @@ main(int argc, char **argv)
 
   if (args.check_syntax) {
     printf("%s:%s:Syntax OK\n", args.prog, argv[n]);
-    cleanup(&args);
+    cleanup(c, &args);
     mrc_irep_free(c, irep);
     return EXIT_SUCCESS;
   }
@@ -344,10 +345,10 @@ main(int argc, char **argv)
     return EXIT_FAILURE;
   }
   result = dump_file(c, wfp, args.outfile, irep, &args);
-  if (source) mrc_free(source);
+  if (source) mrc_free(c, source);
   mrc_ccontext_free(c);
   fclose(wfp);
-  cleanup(&args);
+  cleanup(c, &args);
   mrc_irep_free(c, irep);
 
   if (result != MRC_DUMP_OK) {
