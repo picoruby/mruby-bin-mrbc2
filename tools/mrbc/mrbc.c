@@ -5,13 +5,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if !defined(MRBC_ALLOC_LIBC)
+#if !defined(PICORUBY_VM_MRUBYC)
   #include <mrubyc.h>
-  #if !defined(HEAP_SIZE)
-    #define HEAP_SIZE (1024 * 6400 - 1)
+  #if !defined(MRBC_ALLOC_LIBC)
+    #if !defined(HEAP_SIZE)
+      #define HEAP_SIZE (1024 * 6400 - 1)
+    #endif
     static uint8_t mrbc_heap[HEAP_SIZE];
   #endif
+#else /* PICORUBY_VM_MRUBY */
+  #include "prism_xallocator.h"
 #endif
+
+mrb_state *global_mrb = NULL; /* externed in prism_xallocator.h */
 
 #include "mrc_common.h"
 #include "mrc_irep.h"
@@ -20,8 +26,6 @@
 #include "mrc_cdump.h"
 #include "mrc_compile.h"
 #include "mrc_pool.h"
-
-#define MRB NULL
 
 #define RITEBIN_EXT ".mrb"
 #define C_EXT       ".c"
@@ -48,6 +52,7 @@ struct mrc_args {
   mrc_bool no_optimize  : 1;
   uint8_t flags         : 2;
 };
+
 
 static void
 mrc_show_version(void)
@@ -278,15 +283,20 @@ dump_file(mrc_ccontext *c, FILE *wfp, const char *outfile, const mrc_irep *irep,
 int
 main(int argc, char **argv)
 {
-#if !defined(MRBC_ALLOC_LIBC)
-  mrbc_init_alloc(mrbc_heap, HEAP_SIZE);
-#endif
   int n, result;
   struct mrc_args args;
   FILE *wfp;
   mrc_irep *irep;
 
-  mrc_ccontext *c = mrc_ccontext_new(MRB);
+#if defined(PICORB_VM_MRUBYC)
+  #if !defined(MRBC_ALLOC_LIBC)
+    mrbc_init_alloc(mrbc_heap, HEAP_SIZE);
+  #endif
+#else /* PICORB_VM_MRUBY */
+  mrb_state *mrb = mrb_open();
+  global_mrb = mrb;
+#endif
+  mrc_ccontext *c = mrc_ccontext_new(global_mrb);
 
   n = parse_args(c, argc, argv, &args);
   if (n < 0) {
@@ -346,10 +356,13 @@ main(int argc, char **argv)
   }
   result = dump_file(c, wfp, args.outfile, irep, &args);
   if (source) mrc_free(c, source);
-  mrc_ccontext_free(c);
   fclose(wfp);
   cleanup(c, &args);
   mrc_irep_free(c, irep);
+  mrc_ccontext_free(c);
+#if defined(PICORB_VM_MRUBY)
+  mrb_close(mrb);
+#endif
 
   if (result != MRC_DUMP_OK) {
     return EXIT_FAILURE;
