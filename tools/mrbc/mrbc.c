@@ -5,27 +5,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if !defined(PICORUBY_VM_MRUBYC)
-  #include <mrubyc.h>
-  #if !defined(MRBC_ALLOC_LIBC)
-    #if !defined(HEAP_SIZE)
-      #define HEAP_SIZE (1024 * 6400 - 1)
-    #endif
-    static uint8_t mrbc_heap[HEAP_SIZE];
+#if defined(PICORB_VM_MRUBYC) && !defined(MRBC_ALLOC_LIBC)
+  #if !defined(HEAP_SIZE)
+    #define HEAP_SIZE (1024 * 6400 - 1)
   #endif
-#else /* PICORUBY_VM_MRUBY */
-  #include "prism_xallocator.h"
+  static uint8_t mrbc_heap[HEAP_SIZE];
 #endif
 
-mrb_state *global_mrb = NULL; /* externed in prism_xallocator.h */
-
-#include "mrc_common.h"
 #include "mrc_irep.h"
 #include "mrc_ccontext.h"
 #include "mrc_dump.h"
 #include "mrc_cdump.h"
 #include "mrc_compile.h"
 #include "mrc_pool.h"
+
+mrb_state *global_mrb = NULL; /* externed in prism_xallocator.h */
 
 #define RITEBIN_EXT ".mrb"
 #define C_EXT       ".c"
