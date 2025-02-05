@@ -40,6 +40,29 @@ struct mrc_args {
   uint8_t flags         : 2;
 };
 
+void *
+mrb_malloc(mrb_state* mrb, size_t size)
+{
+  return malloc(size);
+}
+
+void *
+mrb_calloc(mrb_state *mrb, size_t n, size_t size)
+{
+  return calloc(n, size);
+}
+
+void *
+mrb_realloc(mrb_state *mrb, void *ptr, size_t size)
+{
+  return realloc(ptr, size);
+}
+
+void
+mrb_free(mrb_state* mrb, void *p)
+{
+  free(p);
+}
 
 static void
 mrc_show_version(void)
