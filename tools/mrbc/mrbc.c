@@ -5,13 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(PICORB_VM_MRUBYC) && !defined(MRBC_ALLOC_LIBC)
-  #if !defined(HEAP_SIZE)
-    #define HEAP_SIZE (1024 * 6400 - 1)
-  #endif
-  static uint8_t mrbc_heap[HEAP_SIZE];
-#endif
-
 #include "mrc_irep.h"
 #include "mrc_ccontext.h"
 #include "mrc_dump.h"
@@ -282,14 +275,6 @@ main(int argc, char **argv)
   FILE *wfp;
   mrc_irep *irep;
 
-#if defined(PICORB_VM_MRUBYC)
-  #if !defined(MRBC_ALLOC_LIBC)
-    mrbc_init_alloc(mrbc_heap, HEAP_SIZE);
-  #endif
-#else /* PICORB_VM_MRUBY */
-  mrb_state *mrb = mrb_open();
-  global_mrb = mrb;
-#endif
   mrc_ccontext *c = mrc_ccontext_new(global_mrb);
 
   n = parse_args(c, argc, argv, &args);
@@ -354,25 +339,10 @@ main(int argc, char **argv)
   cleanup(c, &args);
   mrc_irep_free(c, irep);
   mrc_ccontext_free(c);
-#if defined(PICORB_VM_MRUBY)
-  mrb_close(mrb);
-#endif
 
   if (result != MRC_DUMP_OK) {
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
 }
-
-void
-mrb_init_mrblib(mrb_state *mrb)
-{
-}
-
-#ifndef MRB_NO_GEMS
-void
-mrb_init_mrbgems(mrb_state *mrb)
-{
-}
-#endif
 
