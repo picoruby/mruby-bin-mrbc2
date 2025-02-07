@@ -5,15 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if !defined(MRBC_ALLOC_LIBC)
-  #include <mrubyc.h>
-  #if !defined(HEAP_SIZE)
-    #define HEAP_SIZE (1024 * 6400 - 1)
-    static uint8_t mrbc_heap[HEAP_SIZE];
-  #endif
-#endif
-
-#include "mrc_common.h"
 #include "mrc_irep.h"
 #include "mrc_ccontext.h"
 #include "mrc_dump.h"
@@ -21,7 +12,7 @@
 #include "mrc_compile.h"
 #include "mrc_pool.h"
 
-#define MRB NULL
+mrb_state *global_mrb = NULL; /* externed in prism_xallocator.h */
 
 #define RITEBIN_EXT ".mrb"
 #define C_EXT       ".c"
@@ -48,6 +39,30 @@ struct mrc_args {
   mrc_bool no_optimize  : 1;
   uint8_t flags         : 2;
 };
+
+void *
+mrb_malloc(mrb_state* mrb, size_t size)
+{
+  return malloc(size);
+}
+
+void *
+mrb_calloc(mrb_state *mrb, size_t n, size_t size)
+{
+  return calloc(n, size);
+}
+
+void *
+mrb_realloc(mrb_state *mrb, void *ptr, size_t size)
+{
+  return realloc(ptr, size);
+}
+
+void
+mrb_free(mrb_state* mrb, void *p)
+{
+  free(p);
+}
 
 static void
 mrc_show_version(void)
@@ -89,7 +104,7 @@ usage(const char *name)
 }
 
 static char *
-get_outfilename(char *infile, const char *ext)
+get_outfilename(mrc_ccontext *c, char *infile, const char *ext)
 {
   size_t ilen, flen, elen;
   char *outfile;
@@ -107,7 +122,7 @@ get_outfilename(char *infile, const char *ext)
   else {
     flen = ilen;
   }
-  outfile = (char*)mrc_malloc(flen+1);
+  outfile = (char*)mrc_malloc(c, flen+1);
   memcpy(outfile, infile, ilen);
   outfile[ilen] = '\0';
   if (p) {
@@ -119,7 +134,7 @@ get_outfilename(char *infile, const char *ext)
 }
 
 static int
-parse_args(int argc, char **argv, struct mrc_args *args)
+parse_args(mrc_ccontext *c, int argc, char **argv, struct mrc_args *args)
 {
   static const struct mrc_args args_zero = { 0 };
   int i;
@@ -140,10 +155,10 @@ parse_args(int argc, char **argv, struct mrc_args *args)
         }
         if (argv[i][2] == '\0' && argv[i+1]) {
           i++;
-          args->outfile = get_outfilename(argv[i], "");
+          args->outfile = get_outfilename(c, argv[i], "");
         }
         else {
-          args->outfile = get_outfilename(argv[i] + 2, "");
+          args->outfile = get_outfilename(c, argv[i] + 2, "");
         }
         break;
       case 'S':
@@ -222,9 +237,9 @@ parse_args(int argc, char **argv, struct mrc_args *args)
 }
 
 static void
-cleanup(struct mrc_args *args)
+cleanup(mrc_ccontext *c, struct mrc_args *args)
 {
-  mrc_free((void*)args->outfile);
+  mrc_free(c, (void*)args->outfile);
 }
 
 static mrc_irep *
@@ -278,17 +293,16 @@ dump_file(mrc_ccontext *c, FILE *wfp, const char *outfile, const mrc_irep *irep,
 int
 main(int argc, char **argv)
 {
-#if !defined(MRBC_ALLOC_LIBC)
-  mrbc_init_alloc(mrbc_heap, HEAP_SIZE);
-#endif
   int n, result;
   struct mrc_args args;
   FILE *wfp;
   mrc_irep *irep;
 
-  n = parse_args(argc, argv, &args);
+  mrc_ccontext *c = mrc_ccontext_new(global_mrb);
+
+  n = parse_args(c, argc, argv, &args);
   if (n < 0) {
-    cleanup(&args);
+    cleanup(c, &args);
     usage(argv[0]);
     return EXIT_FAILURE;
   }
@@ -298,7 +312,7 @@ main(int argc, char **argv)
   }
   if (args.outfile == NULL && !args.check_syntax) {
     if (n + 1 == argc) {
-      args.outfile = get_outfilename(argv[n], args.initname ? C_EXT : RITEBIN_EXT);
+      args.outfile = get_outfilename(c, argv[n], args.initname ? C_EXT : RITEBIN_EXT);
     }
     else {
       fprintf(stderr, "%s: output file should be specified to compile multiple files\n", args.prog);
@@ -307,11 +321,10 @@ main(int argc, char **argv)
   }
 
   args.idx = n;
-  mrc_ccontext *c = mrc_ccontext_new(MRB);
   uint8_t *source = NULL;
   irep = load_file(c, &args, &source);
   if (irep == NULL){
-    cleanup(&args);
+    cleanup(c, &args);
     return EXIT_FAILURE;
   }
 
@@ -325,7 +338,7 @@ main(int argc, char **argv)
 
   if (args.check_syntax) {
     printf("%s:%s:Syntax OK\n", args.prog, argv[n]);
-    cleanup(&args);
+    cleanup(c, &args);
     mrc_irep_free(c, irep);
     return EXIT_SUCCESS;
   }
@@ -344,27 +357,15 @@ main(int argc, char **argv)
     return EXIT_FAILURE;
   }
   result = dump_file(c, wfp, args.outfile, irep, &args);
-  if (source) mrc_free(source);
-  mrc_ccontext_free(c);
+  if (source) mrc_free(c, source);
   fclose(wfp);
-  cleanup(&args);
+  cleanup(c, &args);
   mrc_irep_free(c, irep);
+  mrc_ccontext_free(c);
 
   if (result != MRC_DUMP_OK) {
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
 }
-
-void
-mrb_init_mrblib(mrb_state *mrb)
-{
-}
-
-#ifndef MRB_NO_GEMS
-void
-mrb_init_mrbgems(mrb_state *mrb)
-{
-}
-#endif
 
