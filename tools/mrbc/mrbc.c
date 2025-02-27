@@ -64,6 +64,32 @@ mrb_free(mrb_state* mrb, void *p)
   free(p);
 }
 
+/*
+* Workaround: even if PICORUBY_NO_LIBC_ALLOC is defined, we use libc's alloc functions
+*/
+#if !defined(MRBC_ALLOC_LIBC)
+void *
+mrbc_raw_alloc(unsigned int size)
+{
+  return malloc(size);
+}
+void *
+mrbc_raw_calloc(unsigned int nmemb, unsigned int size)
+{
+  return calloc(nmemb, size);
+}
+void *
+mrbc_raw_realloc(void *ptr, unsigned int size)
+{
+  return realloc(ptr, size);
+}
+void
+mrbc_raw_free(void *ptr)
+{
+  free(ptr);
+}
+#endif
+
 static void
 mrc_show_version(void)
 {
