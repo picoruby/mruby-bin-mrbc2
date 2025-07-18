@@ -404,7 +404,7 @@ mrb_intern(mrb_state *mrb, const char *str, size_t len)
 
 // Dummy function for mrc_pm_options_init() in compile.c
 const char*
-mrb_sym_name(mrb_state *mrb, mrb_sym sym)
+mrb_sym_name(mrb_state *mrb, mrc_sym sym)
 {
   return NULL;
 }
