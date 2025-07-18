@@ -395,3 +395,16 @@ main(int argc, char **argv)
   return EXIT_SUCCESS;
 }
 
+// Dummy function for search_upvar() in codegen.c
+mrc_sym
+mrb_intern(mrb_state *mrb, const char *str, size_t len)
+{
+  return 0;
+}
+
+// Dummy function for mrc_pm_options_init() in compile.c
+const char*
+mrb_sym_name(mrb_state *mrb, mrb_sym sym)
+{
+  return NULL;
+}
