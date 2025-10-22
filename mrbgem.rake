@@ -7,7 +7,7 @@ MRuby::Gem::Specification.new 'mruby-bin-mrbc2' do |spec|
   spec.add_conflict 'mruby-compiler'
   spec.add_conflict 'mruby-bin-picorbc'
 
-  cc.include_paths << "#{build.gems['mruby-compiler2'].dir}/lib/prism/include"
+  spec.cc.include_paths << "#{MRUBY_ROOT}/mrbgems/mruby-compiler2/lib/prism/include"
 
   mrbc2_objs = Dir.glob("#{dir}/tools/mrbc/*.c").map { |f| objfile(f.pathmap("#{build_dir}/tools/mrbc/%n")) }
   mrbc2_objs += build.gems['mruby-compiler2'].objs
