@@ -1,6 +1,6 @@
 {
   "name": "@picoruby/picorbc",
-  "version": "3.4.1",
+  "version": "{{VERSION}}",
   "description": "PicoRuby Compiler (picorbc) - Cross-platform Ruby to mruby bytecode compiler",
   "bin": {
     "picorbc": "./dist/picorbc.js"
