@@ -223,7 +223,7 @@ parse_args(mrc_ccontext *c, int argc, char **argv, struct mrc_args *args)
       case 'h':
         return -1;
       case '-':
-        if (argv[i][1] == '\n') {
+        if (argv[i][1] == '\0') {
           return i;
         }
         if (strcmp(argv[i] + 2, "version") == 0) {
@@ -349,17 +349,19 @@ main(int argc, char **argv)
   args.idx = n;
   uint8_t *source = NULL;
   irep = load_file(c, &args, &source);
-  if (irep == NULL){
-    cleanup(c, &args);
-    return EXIT_FAILURE;
-  }
 
   mrc_diagnostic_list *d = c->diagnostic_list;
   while (d) {
     if (args.verbose || d->code == MRC_PARSER_ERROR || d->code == MRC_GENERATOR_ERROR) {
-      fprintf(stderr, "%s:%d:%d: %s\n", c->filename, d->line, d->column, d->message);
+      const char *filename = c->filename_table ? c->filename_table[0].filename : "-";
+      fprintf(stderr, "%s:%d:%d: %s\n", filename, d->line, d->column, d->message);
     }
     d = d->next;
+  }
+
+  if (irep == NULL){
+    cleanup(c, &args);
+    return EXIT_FAILURE;
   }
 
   if (args.check_syntax) {
