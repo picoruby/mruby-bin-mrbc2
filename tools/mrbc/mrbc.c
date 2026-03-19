@@ -65,7 +65,7 @@ mrb_free(mrb_state* mrb, void *p)
 }
 
 /*
-* Workaround: even if PICORUBY_NO_LIBC_ALLOC is defined, we use libc's alloc functions
+* Workaround: even if PICORB_NO_LIBC_ALLOC is defined, we use libc's alloc functions
 */
 #if !defined(MRBC_ALLOC_LIBC)
 void *
