@@ -353,7 +353,7 @@ main(int argc, char **argv)
   mrc_diagnostic_list *d = c->diagnostic_list;
   while (d) {
     if (args.verbose || d->code == MRC_PARSER_ERROR || d->code == MRC_GENERATOR_ERROR) {
-      const char *filename = c->filename_table ? c->filename_table[0].filename : "-";
+      const char *filename = d->filename ? d->filename : (c->filename_table ? c->filename_table[0].filename : "-");
       fprintf(stderr, "%s:%d:%d: %s\n", filename, d->line, d->column, d->message);
     }
     d = d->next;
