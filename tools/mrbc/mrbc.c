@@ -99,7 +99,7 @@ mrc_show_version(void)
 static void
 mrc_show_copyright(void)
 {
-  printf("Copyright (c) 2010-%s mruby developers\n", MRC_STRINGIZE(MRC_RELEASE_YEAR));
+  printf("Copyright (c) 2010- mruby|PicoRuby developers\n");
 }
 
 static void
