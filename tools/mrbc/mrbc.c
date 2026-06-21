@@ -93,13 +93,13 @@ mrbc_raw_free(void *ptr)
 static void
 mrc_show_version(void)
 {
-  printf("picorbc %s\n", mrc_description());
+  printf("mrbc-prism %s\n", mrc_description());
 }
 
 static void
 mrc_show_copyright(void)
 {
-  printf("Copyright (c) 2010- mruby|PicoRuby developers\n");
+  printf("Copyright (c) 2010- mruby and PicoRuby developers\n");
 }
 
 static void
