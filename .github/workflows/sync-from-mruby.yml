@@ -40,12 +40,12 @@ jobs:
         id: sync
         working-directory: mruby-bin-mrbc2
         env:
-          SOURCE_DIR: ../mruby/mrbgems/mruby-bin-mrbc-prism
+          SOURCE_DIR: ../mruby/mrbgems/mruby-bin-mrbc
         run: |
           set -euo pipefail
 
           if [ ! -d "$SOURCE_DIR" ]; then
-            echo "mruby-bin-mrbc-prism was not found in mruby checkout" >&2
+            echo "mruby-bin-mrbc was not found in mruby checkout" >&2
             exit 1
           fi
 
@@ -78,18 +78,18 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           BASE_BRANCH="$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')"
-          SYNC_BRANCH="sync/mruby-bin-mrbc-prism-${MRUBY_SHORT_SHA}"
+          SYNC_BRANCH="sync/mruby-bin-mrbc-${MRUBY_SHORT_SHA}"
 
           git switch -C "$SYNC_BRANCH"
           git add -A
-          git commit -m "Sync mruby-bin-mrbc-prism from mruby ${MRUBY_SHORT_SHA}"
+          git commit -m "Sync mruby-bin-mrbc from mruby ${MRUBY_SHORT_SHA}"
           git push --force-with-lease origin "$SYNC_BRANCH"
 
           {
             echo "Synchronize this repository from mruby/mruby@${MRUBY_SHA}."
             echo
             echo "Source path:"
-            echo "\`mrbgems/mruby-bin-mrbc-prism\`"
+            echo "\`mrbgems/mruby-bin-mrbc\`"
             echo
             echo "This repository is a downstream mirror for users that need to pin mrbc as an independent mrbgem."
           } > pr-body.md
@@ -97,12 +97,12 @@ jobs:
           EXISTING_PR="$(gh pr list --head "$SYNC_BRANCH" --state open --json number --jq '.[0].number // empty')"
           if [ -n "$EXISTING_PR" ]; then
             gh pr edit "$EXISTING_PR" \
-              --title "Sync mruby-bin-mrbc-prism from mruby ${MRUBY_SHORT_SHA}" \
+              --title "Sync mruby-bin-mrbc from mruby ${MRUBY_SHORT_SHA}" \
               --body-file pr-body.md \
               --base "$BASE_BRANCH"
           else
             gh pr create \
-              --title "Sync mruby-bin-mrbc-prism from mruby ${MRUBY_SHORT_SHA}" \
+              --title "Sync mruby-bin-mrbc from mruby ${MRUBY_SHORT_SHA}" \
               --body-file pr-body.md \
               --base "$BASE_BRANCH" \
               --head "$SYNC_BRANCH"
