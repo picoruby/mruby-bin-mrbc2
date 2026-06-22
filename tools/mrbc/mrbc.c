@@ -12,7 +12,7 @@
 #include "mrc_compile.h"
 #include "mrc_pool.h"
 
-mrb_state *global_mrb = NULL; /* externed in prism_xallocator.h */
+extern mrb_state *global_mrb; /* defined in mruby-compiler (ccontext.c) */
 
 #define RITEBIN_EXT ".mrb"
 #define C_EXT       ".c"
@@ -93,7 +93,7 @@ mrbc_raw_free(void *ptr)
 static void
 mrc_show_version(void)
 {
-  printf("mrbc-prism %s\n", mrc_description());
+  printf("mrbc %s\n", mrc_description());
 }
 
 static void

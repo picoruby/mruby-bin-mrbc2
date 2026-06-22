@@ -59,6 +59,7 @@ picorbc -v script.rb
 ## About PicoRuby
 
 PicoRuby is an mruby ecosystem which is:
+
 - Lightweight and memory efficient
 - Suitable for embedded systems like microcontrollers and browser
 - Compatible with mruby bytecode
