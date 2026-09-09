@@ -22,6 +22,33 @@ assert('parsing function with void argument') do
   assert_equal 0, status.exitstatus
 end
 
+assert('too many local variables are rejected') do
+  compile = lambda do |count|
+    source = Tempfile.new(['many-locals', '.rb'])
+    count.times { |i| source.puts("local_#{i} = nil") }
+    source.flush
+    Open3.capture2e(*(cmd_list('mrbc') + ['-c', source.path]))
+  end
+
+  result, status = compile.call(254)
+  assert_true status.success?, result
+
+  result, status = compile.call(255)
+  assert_equal 1, status.exitstatus
+  assert_include result, 'too many local variables'
+
+  # 65,536 is where the count wrapped through the 16-bit stack pointer and
+  # the table was written past its end (#7576), and it is the one number
+  # that shows the check runs before the narrowing rather than after. It is
+  # not compiled here: one such source costs 56 seconds in this build, 94
+  # under a sanitizer and 101 at -O0, against the half minute the whole of
+  # this file takes, and every runner builds this configuration. Run it by
+  # hand where the narrowing is touched:
+  #
+  #   ruby -e '65_536.times {|i| puts "local_#{i} = nil"}' > many-locals.rb
+  #   mrbc -c many-locals.rb
+end
+
 assert('embedded document with invalid terminator') do
   a, out = Tempfile.new('a.rb'), Tempfile.new('out.mrb')
   a.write("=begin\n=endx\n")
