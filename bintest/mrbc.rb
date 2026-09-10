@@ -13,6 +13,36 @@ assert('Compiling multiple files without new line in last line. #2361') do
   assert_equal 0, status.exitstatus
 end
 
+assert('the first of several input files may hold no statements') do
+  # codegen() walks from one input file to the next when the node it is handed
+  # starts past the end of the file it is on, and closes the debug range of the
+  # file it leaves against the scope's irep. The scope generate_code() starts in
+  # has none: it only carries the program node down to the top-level scope. A
+  # first file that parses to no statement puts that program node in the second
+  # file, so the walk ran in the scope without an irep and read through it.
+  Dir.mktmpdir do |dir|
+    second = File.join(dir, 'second.rb')
+    File.write(second, "p 1\nraise 'boom'\n")
+
+    # Every file that holds no statement at all arrives the same way.
+    ['', "\n", "# comment\n", "=begin\n=end\n"].each do |source|
+      first = File.join(dir, 'first.rb')
+      out = File.join(dir, 'out.mrb')
+      File.write(first, source)
+
+      result, status = Open3.capture2e(*(cmd_list('mrbc') + ['-g', '-o', out, first, second]))
+      assert_equal 0, status.exitstatus, source.inspect
+      assert_equal '', result.chomp
+
+      # The walk still has to land on the second file: that is what names the
+      # line the backtrace blames.
+      ran, = Open3.capture2e(*(cmd_list('mruby') + ['-b', out]))
+      assert_include ran, "1\n", source.inspect
+      assert_include ran, "#{second}:2: boom (RuntimeError)", source.inspect
+    end
+  end
+end
+
 assert('parsing function with void argument') do
   a, out = Tempfile.new('a.rb'), Tempfile.new('out.mrb')
   a.write('f ()')
@@ -47,6 +77,31 @@ assert('too many local variables are rejected') do
   #
   #   ruby -e '65_536.times {|i| puts "local_#{i} = nil"}' > many-locals.rb
   #   mrbc -c many-locals.rb
+end
+
+assert('a scope refused for its local variables is named with its position') do
+  source = Tempfile.new(['many-locals', '.rb'])
+  source.puts("x = 1")
+  source.puts("def big")
+  255.times { |i| source.puts("  local_#{i} = nil") }
+  source.puts("end")
+  source.flush
+  result, status = Open3.capture2e(*(cmd_list('mrbc') + ['-c', source.path]))
+  assert_equal 1, status.exitstatus
+  assert_include result, "#{source.path}:2: too many local variables"
+end
+
+assert('a generator error carries its position into the diagnostic list') do
+  # The list is what `mrbc` prints and what `eval` builds its SyntaxError from.
+  # Every entry in it used to read 0:0, since the generator recorded no
+  # position; the parser's entries have always carried one.
+  source = Tempfile.new(['end-block', '.rb'])
+  source.puts("x = 1")
+  source.puts("END { }")
+  source.flush
+  result, status = Open3.capture2e(*(cmd_list('mrbc') + ['-c', source.path]))
+  assert_equal 1, status.exitstatus
+  assert_include result, "#{source.path}:2:1: generator error, END not supported"
 end
 
 assert('embedded document with invalid terminator') do
